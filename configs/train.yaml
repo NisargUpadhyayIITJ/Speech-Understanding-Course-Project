@@ -1,9 +1,16 @@
 find_unused_parameters: True
 
-batch_size: 16
+num_epochs: 1
+max_train_batches: 100
+
+batch_size: 8
 num_workers: 24
 
 learning_rate: 1e-4
+
+comet_project_name: "antispoof"
+comet_run_name: "check_train"
+workspace: "korallll"
 
 data:
   asvspoof5_train:

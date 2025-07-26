@@ -1,15 +1,20 @@
+from comet_ml import Experiment
+
 import os
+
 
 import hydra
 import torch, torch.nn as nn
 from omegaconf import OmegaConf
 from accelerate import DistributedDataParallelKwargs, Accelerator
-from tqdm import tqdm
 from torch.utils.data import ConcatDataset, DataLoader
+from tqdm import tqdm
+
 
 from model import aasist3
 from datasets import print_fancy
 from datasets import ASVspoof2019Dev, ASVspoof2019Train, ASVspoof5Dev, MAILABS, MLAAD, ASVspoof5Train
+from utils import train_one_epoch
 
 
 @hydra.main(config_path="configs", config_name="train", version_base="1.1")
@@ -57,19 +62,22 @@ def main(config):
     train_dl = DataLoader(
         train_dataset,
         batch_size=config['batch_size'],
-        num_workers=config['num_workers']
+        num_workers=config['num_workers'],
+        shuffle=True
     )
 
     asv19_dl = DataLoader(
         asvspoof19dev,
         batch_size=config['batch_size'],
-        num_workers=config['num_workers']
+        num_workers=config['num_workers'],
+        shuffle=False
     )
 
     asv5_dl = DataLoader(
         asvspoof5dev,
         batch_size=config['batch_size'],
-        num_workers=config['num_workers']
+        num_workers=config['num_workers'],
+        shuffle=False
     )
 
     print_fancy('dataloaders initialised')
@@ -94,8 +102,23 @@ def main(config):
         optimizer
     )
 
+    print_fancy("Important entities created")
 
+    experiment = Experiment(
+        api_key=os.environ.get("COMET_KEY", None),
+        project_name=config.get("comet_project_name", "default"),
+        workspace=config.get("comet_workspace", None),
+        auto_output_logging="simple"
+    )
+    experiment.set_name(config.get("comet_run_name"))
+    experiment.log_parameters(OmegaConf.to_container(config))
+    print_fancy("Comet experiment initialized")
 
+    for epoch in tqdm(range(config.get("num_epochs"))):
+        current_loss = train_one_epoch(model, train_dl, loss_fn, optimizer, accelerator, max_batches=config.get("max_train_batches"))
+        experiment.log_metric("avg_loss_per_epoch", current_loss)
+
+    experiment.end()
 
 
 if __name__ == "__main__":
