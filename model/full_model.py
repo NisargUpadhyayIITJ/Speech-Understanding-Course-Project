@@ -3,7 +3,6 @@
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
-import torch.nn.functional as F
 
 from .kan import KANLinear
 from .gat import GraphAttentionLayer
@@ -11,6 +10,7 @@ from .pool import GraphPool
 from .branch import InferenceBranch
 from .residual import Residual_block
 from .wav2vec import Wav2Vec2Encoder
+
 
 class aasist3(nn.Module):
     def __init__(self, d_args={
@@ -48,10 +48,10 @@ class aasist3(nn.Module):
 
         self.pos_S = nn.Parameter(torch.randn(1, 42, filts[-1][-1]))
         self.pos_T = nn.Parameter(torch.randn(1, 67, filts[-1][-1]))
-        
+
         self.GAT_layer_S = GraphAttentionLayer(filts[-1][-1], gat_dims[0], temperature=temperatures[0], size=size)
         self.GAT_layer_T = GraphAttentionLayer(filts[-1][-1], gat_dims[0], temperature=temperatures[1], size=size)
-        
+
         self.pool_S = GraphPool(pool_ratios[0], gat_dims[0], 0.3, size=size)
         self.pool_T = GraphPool(pool_ratios[1], gat_dims[0], 0.3, size=size)
 
@@ -84,7 +84,7 @@ class aasist3(nn.Module):
             pool_ratio=pool_ratios[2],
             size=size
         )
-        
+
         self.out_layer = KANLinear(5 * gat_dims[1], 2)
 
     def forward(self, x, Freq_aug=False):
@@ -114,7 +114,7 @@ class aasist3(nn.Module):
         out_T2, out_S2, master2 = self.inference_branch2(out_T, out_S, self.master2)
         out_T3, out_S3, master3 = self.inference_branch3(out_T, out_S, self.master3)
         out_T4, out_S4, master4 = self.inference_branch4(out_T, out_S, self.master4)
-        
+
         out_T1, out_T2 = self.drop_way(out_T1), self.drop_way(out_T2)
         out_T3, out_T4 = self.drop_way(out_T3), self.drop_way(out_T4)
         out_S1, out_S2 = self.drop_way(out_S1), self.drop_way(out_S2)
@@ -122,11 +122,10 @@ class aasist3(nn.Module):
         master1, master2 = self.drop_way(master1), self.drop_way(master2)
         master3, master4 = self.drop_way(master3), self.drop_way(master4)
 
-
         out_T = torch.stack([out_T1, out_T2, out_T3, out_T4]).max(dim=0)[0]
         out_S = torch.stack([out_S1, out_S2, out_S3, out_S4]).max(dim=0)[0]
         master = torch.stack([master1, master2, master3, master4]).max(dim=0)[0]
-        
+
         T_max, _ = torch.max(torch.abs(out_T), dim=1)
         T_avg = torch.mean(out_T, dim=1)
         S_max, _ = torch.max(torch.abs(out_S), dim=1)
@@ -137,5 +136,3 @@ class aasist3(nn.Module):
         output = self.out_layer(last_hidden)
 
         return output
-
-
