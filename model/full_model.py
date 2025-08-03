@@ -3,6 +3,7 @@
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+from huggingface_hub import PyTorchModelHubMixin
 
 from .kan import KANLinear
 from .gat import GraphAttentionLayer
@@ -12,7 +13,7 @@ from .residual import Residual_block
 from .wav2vec import Wav2Vec2Encoder
 
 
-class aasist3(nn.Module):
+class aasist3(nn.Module, PyTorchModelHubMixin):
     def __init__(self, d_args={
         "architecture": "AASIST",
         "nb_samp": 64600,
@@ -21,10 +22,10 @@ class aasist3(nn.Module):
         "gat_dims": [64, 32],
         "pool_ratios": [0.5, 0.7, 0.5, 0.5],
         "temperatures": [2.0, 2.0, 100.0, 100.0],
-    }, size=200, cache_dir="weights/"):
+    }, size=200, w2v_cache_dir="weights/", load_pretrained=True):
         super().__init__()
 
-        self.w2v_encoder = Wav2Vec2Encoder(cache_dir=cache_dir)
+        self.w2v_encoder = Wav2Vec2Encoder(cache_dir=w2v_cache_dir, load_pretrained=load_pretrained)
         self.bridge = KANLinear(1024, 128)
 
         self.d_args = d_args

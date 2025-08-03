@@ -5,6 +5,6 @@ else
     exit 1
 fi
 
-export CUDA_VISIBLE_DEVICES=5
 
-accelerate launch --debug --config_file ./configs/accelerate1.yaml train.py
+CUDA_VISIBLE_DEVICES=4,5 accelerate launch --debug --config_file ./configs/accelerate2.yaml unwrap.py
+CUDA_VISIBLE_DEVICES=4,5 accelerate launch --debug --config_file ./configs/accelerate2.yaml train.py

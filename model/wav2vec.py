@@ -1,5 +1,6 @@
 import torch, torch.nn as nn
-from transformers import Wav2Vec2Model
+from transformers import Wav2Vec2Model, Wav2Vec2Config
+
 
 class Wav2Vec2Encoder(nn.Module):
     """SSL encoder based on Hugging Face's Wav2Vec2 model."""
@@ -12,7 +13,8 @@ class Wav2Vec2Encoder(nn.Module):
                  output_attentions: bool = False,
                  output_hidden_states: bool = False,
                  normalize_waveform: bool = True,
-                 cache_dir: str = "weights"):
+                 cache_dir: str = "weights",
+                 load_pretrained: bool = True):
         """Initialize the Wav2Vec2 encoder.
 
         Args:
@@ -23,6 +25,8 @@ class Wav2Vec2Encoder(nn.Module):
             output_attentions: Whether to output attentions.
             output_hidden_states: Whether to output hidden states.
             normalize_waveform: Whether to normalize the waveform input.
+            cache_dir: Directory to cache pretrained models.
+            load_pretrained: Whether to load pretrained weights. If False, initializes with random weights.
         """
         super().__init__()
 
@@ -34,8 +38,16 @@ class Wav2Vec2Encoder(nn.Module):
         self.output_hidden_states = output_hidden_states
         self.normalize_waveform = normalize_waveform
 
-        self.model = Wav2Vec2Model.from_pretrained(model_name_or_path, cache_dir=cache_dir)
-
+        if load_pretrained:
+            self.model = Wav2Vec2Model.from_pretrained(model_name_or_path, cache_dir=cache_dir)
+        else:
+            config = Wav2Vec2Config.from_pretrained(
+                model_name_or_path, 
+                cache_dir=cache_dir,
+                local_files_only=False
+            )
+            self.model = Wav2Vec2Model(config)
+            self.model.init_weights()
 
     def forward(self, x):
         """Forward pass through the Wav2Vec2 encoder.

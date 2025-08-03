@@ -1,6 +1,5 @@
 import os
 
-import comet_ml
 import hydra
 import torch, torch.nn as nn
 from omegaconf import OmegaConf
@@ -13,6 +12,10 @@ from model import aasist3
 from datasets import print_fancy
 from datasets import ASVspoof2019Dev, ASVspoof2019Train, ASVspoof5Dev, MAILABS, MLAAD, ASVspoof5Train
 from utils import train_one_epoch, compute_scores, compute_antispoofing_metrics
+from safetensors.torch import save_file
+
+
+PATH_TO_SAVE = "/data/home/borodin_sam/another_workspace/AASIST3/weights/train/FINAL/model.safetensors"
 
 
 @hydra.main(config_path="configs", config_name="train", version_base="1.1")
@@ -25,8 +28,6 @@ def main(config):
 
     accelerator = Accelerator(
         kwargs_handlers=[ddp_kwargs],
-        log_with="comet_ml",
-        gradient_accumulation_steps=config.get("gradient_accumulation_steps")
     )
 
     print_fancy("Accelerator loaded")
@@ -86,7 +87,7 @@ def main(config):
 
     loss_fn = nn.CrossEntropyLoss()
 
-    model = aasist3()
+    model = aasist3(load_pretrained=False)
 
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -105,22 +106,6 @@ def main(config):
     )
 
     print_fancy("Important entities created")
-
-    # Initialize Comet ML experiment through Accelerator
-    accelerator.init_trackers(
-        project_name=config.get("comet_project_name", "default"),
-        config=OmegaConf.to_container(config),
-        init_kwargs={
-            "comet": {
-                "api_key": os.environ.get("COMET_API_KEY", None),
-                "workspace": config.get("comet_workspace", None),
-                "project_name": config.get("comet_project_name", "default"),
-                "experiment_name": config.get("comet_run_name", "default"),
-                "auto_output_logging": "simple"
-            }
-        }
-    )
-    print_fancy("Comet experiment initialized through Accelerator")
 
     checkpoint_path = config.get("checkpoint_path", -1)
     resume_epoch = 0
@@ -144,35 +129,9 @@ def main(config):
                 accelerator.print("⚠️ Warning: Model weights did not change after loading checkpoint")
 
     print_fancy("Model restorated.")
-    raise Exception()
-
-    for epoch in tqdm(range(resume_epoch, config.get("num_epochs"))):
-        current_loss = train_one_epoch(model, train_dl, loss_fn, optimizer, accelerator, max_batches=config.get("max_train_batches"))
-        accelerator.log({"avg_loss_per_epoch": current_loss})
-
-        asv19_scores, asv19_labels = compute_scores(asv19_dl, model, accelerator, max_batches=config.get("max_val_batches"))
-        asv19dcf, asv19_eer, asv19_cllr = compute_antispoofing_metrics(asv19_scores, asv19_labels)
-        accelerator.log({
-            "asv19_dev_dcf": asv19dcf,
-            "asv19_dev_eer": asv19_eer,
-            "asv19_dev_cllr": asv19_cllr
-        }, step=epoch)
-        print_fancy(f"asv19 eer{asv19_eer},\n asv19 dcf {asv19dcf}")
-
-        asv5_scores, asv5_labels = compute_scores(asv5_dl, model, accelerator, max_batches=config.get("max_val_batches"))
-        asv5dcf, asv5_eer, asv5_cllr = compute_antispoofing_metrics(asv5_scores, asv5_labels)
-        accelerator.log({
-            "asv5_dev_dcf": asv5dcf,
-            "asv5_dev_eer": asv5_eer,
-            "asv5_dev_cllr": asv5_cllr
-        }, step=epoch)
-        print_fancy(f"asv5 eer{asv5_eer},\n asv5 dcf {asv5dcf}")
-
-        checkpoint_name = f"{config.get('comet_run_name')}_epoch_{epoch}"
-        checkpoint_path = os.path.join(config.get("checkpoint_base_path"), checkpoint_name)
-        accelerator.save_state(checkpoint_path)
-
-    accelerator.end_training()
+    unwrapped_model = accelerator.unwrap_model(model)
+    unwrapped_model.push_to_hub("MTUCI/AASIST3")
+    # save_file(unwrapped_model.state_dict(), PATH_TO_SAVE)
 
 
 if __name__ == "__main__":

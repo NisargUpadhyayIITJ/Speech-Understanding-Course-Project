@@ -1,4 +1,16 @@
 find_unused_parameters: True
+## we use weights from check_multigpu_epoch_16
+# asv19 eer0.0007512734331125843,                                               
+# asv19 dcf 0.0012109795479009688
+# eer0.10467467192957133,
+# asv5 dcf 0.25353725340775146
+
+weights_path: /data/home/borodin_sam/another_workspace/AASIST3/weights/train/FINAL/model.safetensors
+
+batch_size:  128
+num_workers: 24
+shuffle: False
+max_val_batches: 10
 
 data:
   asvspoof2021_df:

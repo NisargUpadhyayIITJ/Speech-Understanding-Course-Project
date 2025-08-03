@@ -467,3 +467,39 @@ def evaluate_EER(ref_df, pred_df):
 
     eer, _ = compute_eer(pos_scores, neg_scores)
     return eer * 100
+
+
+def compute_antispoofing_metrics(
+    prediction_scores: list,
+    ground_truth_labels: list,
+    return_thr: bool = False
+):
+    spoofing_prior_probability = 0.05
+    detection_cost_function_parameters = {
+        'Pspoof': spoofing_prior_probability,
+        'Cmiss': 1,
+        'Cfa': 10,
+    }
+
+    scores_array = np.array(prediction_scores, dtype=np.float64)
+    labels_array = np.array(ground_truth_labels)
+
+    genuine_speaker_scores = scores_array[labels_array == 1]
+    synthetic_audio_scores = scores_array[labels_array == 0]
+
+    equal_error_rate, false_rejection_rates, false_acceptance_rates, decision_thresholds = compute_eer(
+        genuine_speaker_scores, synthetic_audio_scores
+    )
+
+    calibration_loss = calculate_CLLR(genuine_speaker_scores, synthetic_audio_scores)
+
+    minimum_detection_cost, _ = compute_mindcf(
+        false_rejection_rates,
+        false_acceptance_rates,
+        decision_thresholds,
+        spoofing_prior_probability,
+        detection_cost_function_parameters['Cmiss'],
+        detection_cost_function_parameters['Cfa']
+    )
+    if return_thr: return minimum_detection_cost, equal_error_rate, calibration_loss, _
+    else: return minimum_detection_cost, equal_error_rate, calibration_loss

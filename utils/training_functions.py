@@ -10,6 +10,7 @@ def train_one_epoch(model, dataloader, criterion, optimizer, accelerator, max_ba
         criterion: Loss function.
         optimizer: Optimizer.
         accelerator: Accelerator (from HuggingFace Accelerate).
+        max_batches: Maximum number of batches to process.
     Returns:
         Average loss for the epoch.
     """
@@ -18,15 +19,18 @@ def train_one_epoch(model, dataloader, criterion, optimizer, accelerator, max_ba
     num_batches = 0
     for batch in tqdm(dataloader, desc="Training", leave=False):
         inputs, targets = batch
+
         with accelerator.accumulate(model):
-            optimizer.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, targets)
             accelerator.backward(loss)
             optimizer.step()
+            optimizer.zero_grad()
         total_loss += loss.item()
+        accelerator.log({"loss": loss.item()})
         num_batches += 1
-        if (max_batches != -1) and (num_batches > max_batches): break
+        if (max_batches != -1) and (num_batches > max_batches):
+            break
 
     avg_loss = total_loss / num_batches if num_batches > 0 else 0.0
     return avg_loss
