@@ -18,6 +18,8 @@ def compute_scores(
     for inputs, targets in tqdm(dataloader, desc="Model evaluation", leave=False):
         with torch.inference_mode():
             outputs = model(inputs)
+            if isinstance(outputs, dict):
+                outputs = outputs["logits"]
             gathered_outputs, gathered_targets = accelerator.gather_for_metrics(
                 (outputs.detach(), targets.detach())
             )

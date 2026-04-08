@@ -2,7 +2,7 @@ import os
 
 import comet_ml
 import hydra
-import torch, torch.nn as nn
+import torch
 from omegaconf import OmegaConf
 from accelerate import DistributedDataParallelKwargs, Accelerator
 from torch.utils.data import ConcatDataset, DataLoader
@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 
 from model import aasist3
+from model.losses import build_training_objective
 from datasets import print_fancy
 from datasets import ASVspoof2019Dev, ASVspoof2019Train, ASVspoof5Dev, MAILABS, MLAAD, ASVspoof5Train
 from utils import train_one_epoch, compute_scores, compute_antispoofing_metrics
@@ -20,6 +21,16 @@ def main(config):
     # os.environ['NCCL_P2P_DISABLE'] = '1'
     # os.environ['NCCL_IB_DISABLE'] = '1'
     print_fancy(str(OmegaConf.to_container(config)))
+    two_views = config.get("augmentation", {}).get("two_views", False)
+    model_config = OmegaConf.to_container(config.get("model"), resolve=True)
+    encoder_config = OmegaConf.to_container(config.get("encoder"), resolve=True)
+    graph_config = OmegaConf.to_container(config.get("graph"), resolve=True)
+    projection_config = OmegaConf.to_container(config.get("projection"), resolve=True)
+    loss_config = OmegaConf.to_container(config.get("loss"), resolve=True)
+    if loss_config.get("contrastive_weight", 0.0) > 0:
+        projection_config["enabled"] = True
+    if loss_config.get("name") in {"ce_supcon", "ce_infonce"} and not two_views:
+        raise ValueError("Contrastive objectives require `augmentation.two_views=true`.")
 
     ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=config["find_unused_parameters"])
 
@@ -34,16 +45,20 @@ def main(config):
     asvspoof19train = ASVspoof2019Train(
         root_dir=config['data']["asvspoof2019_train"]["root_dir"],
         meta_path=config['data']["asvspoof2019_train"]["meta_path"],
+        two_views=two_views,
     )
     asvspoof24train = ASVspoof5Train(
         root_dir=config['data']["asvspoof5_train"]["root_dir"],
         meta_path=config['data']["asvspoof5_train"]["meta_path"],
+        two_views=two_views,
     )
     mlaad = MLAAD(
         root_dir=config['data']["mlaad"]["root_dir"],
+        two_views=two_views,
     )
     mailabs = MAILABS(
         root_dir=config['data']["m_ailabs"]["root_dir"],
+        two_views=two_views,
     )
     train_dataset = ConcatDataset([asvspoof19train, asvspoof24train, mlaad, mailabs])
 
@@ -84,9 +99,13 @@ def main(config):
 
     print_fancy('dataloaders initialised')
 
-    loss_fn = nn.CrossEntropyLoss()
-
-    model = aasist3()
+    objective = build_training_objective(loss_config)
+    model = aasist3(
+        model_config=model_config,
+        encoder_config=encoder_config,
+        graph_config=graph_config,
+        projection_config=projection_config,
+    )
 
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -95,11 +114,10 @@ def main(config):
         weight_decay=0
     )
 
-    train_dl, asv19_dl, asv5_dl, loss_fn, model, optimizer = accelerator.prepare(
+    train_dl, asv19_dl, asv5_dl, model, optimizer = accelerator.prepare(
         train_dl,
         asv19_dl,
         asv5_dl,
-        loss_fn,
         model,
         optimizer
     )
@@ -113,7 +131,7 @@ def main(config):
         init_kwargs={
             "comet": {
                 "api_key": os.environ.get("COMET_API_KEY", None),
-                "workspace": config.get("comet_workspace", None),
+                "workspace": config.get("workspace", config.get("comet_workspace", None)),
                 "project_name": config.get("comet_project_name", "default"),
                 "experiment_name": config.get("comet_run_name", "default"),
                 "auto_output_logging": "simple"
@@ -144,11 +162,17 @@ def main(config):
                 accelerator.print("⚠️ Warning: Model weights did not change after loading checkpoint")
 
     print_fancy("Model restorated.")
-    raise Exception()
 
     for epoch in tqdm(range(resume_epoch, config.get("num_epochs"))):
-        current_loss = train_one_epoch(model, train_dl, loss_fn, optimizer, accelerator, max_batches=config.get("max_train_batches"))
-        accelerator.log({"avg_loss_per_epoch": current_loss})
+        current_loss, epoch_train_metrics = train_one_epoch(
+            model,
+            train_dl,
+            objective,
+            optimizer,
+            accelerator,
+            max_batches=config.get("max_train_batches"),
+        )
+        accelerator.log({"avg_loss_per_epoch": current_loss, **epoch_train_metrics}, step=epoch)
 
         asv19_scores, asv19_labels = compute_scores(asv19_dl, model, accelerator, max_batches=config.get("max_val_batches"))
         asv19dcf, asv19_eer, asv19_cllr = compute_antispoofing_metrics(asv19_scores, asv19_labels)

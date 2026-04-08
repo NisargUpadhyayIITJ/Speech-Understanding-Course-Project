@@ -1,0 +1,12 @@
+# @package _global_
+encoder:
+  name: hubert
+  model_name: facebook/hubert-large-ls960-ft
+  freeze_strategy: full
+  layer_aggregation: last
+model:
+  name: baseline
+loss:
+  name: ce
+augmentation:
+  two_views: false

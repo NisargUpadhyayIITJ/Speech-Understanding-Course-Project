@@ -1,0 +1,10 @@
+# @package _global_
+encoder:
+  freeze_strategy: full
+model:
+  name: baseline
+loss:
+  name: ce
+augmentation:
+  two_views: false
+

@@ -1,0 +1,7 @@
+name: learnable_graph
+hidden_dim: 128
+num_layers: 2
+num_nodes: 64
+dropout: 0.2
+num_classes: 2
+

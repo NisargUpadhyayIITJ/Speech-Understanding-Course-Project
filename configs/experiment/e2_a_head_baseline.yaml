@@ -1,0 +1,6 @@
+# @package _global_
+model:
+  name: baseline
+loss:
+  name: ce
+

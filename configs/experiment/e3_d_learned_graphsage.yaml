@@ -1,0 +1,9 @@
+# @package _global_
+model:
+  name: learnable_graph
+graph:
+  mode: learned
+  operator: graphsage
+loss:
+  name: ce
+

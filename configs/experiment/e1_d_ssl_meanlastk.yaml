@@ -1,0 +1,12 @@
+# @package _global_
+encoder:
+  freeze_strategy: none
+  layer_aggregation: mean_last_k
+  mean_last_k: 4
+model:
+  name: baseline
+loss:
+  name: ce
+augmentation:
+  two_views: false
+

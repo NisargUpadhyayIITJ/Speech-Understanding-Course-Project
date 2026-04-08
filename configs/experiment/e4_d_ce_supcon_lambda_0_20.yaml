@@ -1,0 +1,8 @@
+# @package _global_
+loss:
+  name: ce_supcon
+  contrastive_weight: 0.2
+projection:
+  enabled: true
+augmentation:
+  two_views: true

@@ -18,7 +18,8 @@ class BaseAudioDataset(Dataset):
         annot: Optional[str] = None,
         sample_rate: int = 16000,
         max_length: int = 64600,
-        return_file_path: bool = False
+        return_file_path: bool = False,
+        two_views: bool = False,
     ):
         if annot and os.path.exists(annot):
             metadata = pd.read_csv(annot)
@@ -26,6 +27,7 @@ class BaseAudioDataset(Dataset):
         self.sr = sample_rate
         self.max_length = max_length
         self.return_file_path = return_file_path
+        self.two_views = two_views
 
     def __len__(self) -> int:
         return len(self.metadata)
@@ -53,10 +55,18 @@ class BaseAudioDataset(Dataset):
         if sr != self.sr:
             audio = torchaudio.functional.resample(audio, sr, self.sr)
         audio = torchaudio.functional.preemphasis(audio)
-        audio = apply_random_segment_extraction(audio, self.max_length)
 
-        if not self.return_file_path: return audio, lbl
-        else: return audio, lbl, path
+        if self.two_views:
+            audio_view_one = apply_random_segment_extraction(audio, self.max_length)
+            audio_view_two = apply_random_segment_extraction(audio, self.max_length)
+            if not self.return_file_path:
+                return audio_view_one, audio_view_two, lbl
+            return audio_view_one, audio_view_two, lbl, path
+
+        audio = apply_random_segment_extraction(audio, self.max_length)
+        if not self.return_file_path:
+            return audio, lbl
+        return audio, lbl, path
 
 
 class TrialAudioDataset(BaseAudioDataset):

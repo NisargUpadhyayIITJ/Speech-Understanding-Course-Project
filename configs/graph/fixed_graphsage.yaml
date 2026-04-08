@@ -1,0 +1,7 @@
+mode: fixed
+operator: graphsage
+edge_score: dot
+topk: 8
+symmetric: true
+dropout: 0.2
+aggregator: meanmax

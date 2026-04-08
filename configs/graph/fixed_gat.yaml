@@ -1,0 +1,7 @@
+mode: fixed
+operator: gat
+edge_score: dot
+topk: 8
+symmetric: true
+dropout: 0.2
+

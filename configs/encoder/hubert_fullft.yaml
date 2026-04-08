@@ -1,0 +1,10 @@
+name: hubert
+model_name: facebook/hubert-large-ls960-ft
+load_pretrained: true
+normalize_waveform: true
+cache_dir: weights
+freeze_strategy: none
+unfreeze_last_n_layers: 24
+layer_aggregation: last
+mean_last_k: 4
+

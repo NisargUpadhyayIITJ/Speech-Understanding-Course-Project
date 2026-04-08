@@ -1,4 +1,12 @@
-find_unused_parameters: True
+defaults:
+  - encoder: w2v2_fullft
+  - model: baseline
+  - graph: fixed_gat
+  - loss: ce
+  - _self_
+  - optional experiment: null
+
+find_unused_parameters: true
 
 num_epochs: 20
 max_train_batches: -1
@@ -11,6 +19,18 @@ num_workers: 18
 
 learning_rate: 1e-4
 
+projection:
+  enabled: false
+  hidden_dim: 256
+  dim: 128
+  dropout: 0.1
+
+export:
+  weights_path: /data/home/borodin_sam/another_workspace/AASIST3/weights/train/FINAL/model.safetensors
+  repo_id: null
+
+augmentation:
+  two_views: false
 
 comet_project_name: "antispoof"
 comet_run_name: "check_multigpu"
@@ -18,7 +38,6 @@ workspace: "korallll"
 
 checkpoint_base_path: /data/home/borodin_sam/another_workspace/AASIST3/weights/train
 resume_from_checkpoint: /data/home/borodin_sam/another_workspace/AASIST3/weights/train/check_multigpu_epoch_5
-# resume_from_checkpoint: null
 
 data:
   asvspoof5_train:
@@ -31,11 +50,9 @@ data:
 
   mlaad:
     root_dir: /data/additional/DATASETS/audio/MLAAD
-    # annot: ${oc.env:PROJECT_ROOT}/metadatas/mlaad.csv
 
   m_ailabs:
     root_dir: /data/additional/DATASETS/audio/M_AILABS
-    # annot: ${oc.env:PROJECT_ROOT}/metadatas/m_ailabs.csv
 
   asvspoof5_dev:
     root_dir: /data/additional/DATASETS/audio/asvspoof5/flac_D

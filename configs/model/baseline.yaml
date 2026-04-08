@@ -1,0 +1,7 @@
+name: baseline
+hidden_dim: 128
+num_classes: 2
+dropout: 0.5
+branch_dropout: 0.2
+size: 200
+

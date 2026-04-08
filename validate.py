@@ -1,7 +1,5 @@
-import os
-
 import hydra
-import torch, torch.nn as nn
+import torch
 from omegaconf import OmegaConf
 from accelerate import Accelerator
 from torch.utils.data import DataLoader
@@ -17,6 +15,10 @@ from utils import compute_scores, compute_antispoofing_metrics
 def main(config):
     print_fancy(str(OmegaConf.to_container(config)))
     accelerator = Accelerator()
+    model_config = OmegaConf.to_container(config.get("model"), resolve=True)
+    encoder_config = OmegaConf.to_container(config.get("encoder"), resolve=True)
+    graph_config = OmegaConf.to_container(config.get("graph"), resolve=True)
+    projection_config = OmegaConf.to_container(config.get("projection"), resolve=True)
 
     print_fancy("Accelerator loaded")
     asvspoof2019 = ASVspoof2019Eval(
@@ -68,22 +70,31 @@ def main(config):
 
     print_fancy('dataloaders initialised')
 
-    model = aasist3.from_pretrained("MTUCI/AASIST3", cache_dir="/data/home/borodin_sam/another_workspace/AASIST3/weights")
-    model_weights_before = {name: param.clone().detach() for name, param in model.named_parameters()}
+    model = aasist3(
+        model_config=model_config,
+        encoder_config=encoder_config,
+        graph_config=graph_config,
+        projection_config=projection_config,
+    )
     checkpoint_path = config.get("weights_path")
-    state_dict = load_file(checkpoint_path)
-    model.load_state_dict(state_dict)
+    if checkpoint_path:
+        model_weights_before = {name: param.clone().detach() for name, param in model.named_parameters()}
+        state_dict = load_file(checkpoint_path)
+        model.load_state_dict(state_dict)
+    elif config.get("pretrained_repo_id"):
+        model = aasist3.from_pretrained(config.get("pretrained_repo_id"), cache_dir=config.get("weights_cache_dir"))
 
     weights_changed = False
-    for name, param in model.named_parameters():
-        if not torch.equal(model_weights_before[name], param):
-            weights_changed = True
-            accelerator.print(f"Weights changed for parameter: {name}")
-            break
+    if checkpoint_path:
+        for name, param in model.named_parameters():
+            if not torch.equal(model_weights_before[name], param):
+                weights_changed = True
+                accelerator.print(f"Weights changed for parameter: {name}")
+                break
 
-    if weights_changed:
+    if checkpoint_path and weights_changed:
         accelerator.print("✅ Model weights successfully loaded from checkpoint")
-    else:
+    elif checkpoint_path:
         accelerator.print("⚠️ Warning: Model weights did not change after loading checkpoint")
         print_fancy("Model restorated.")
 

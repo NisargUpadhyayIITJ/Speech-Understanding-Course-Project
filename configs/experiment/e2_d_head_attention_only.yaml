@@ -1,0 +1,7 @@
+# @package _global_
+model:
+  name: kan_attention
+  use_kan_feedforward: false
+loss:
+  name: ce
+

@@ -1,0 +1,9 @@
+# @package _global_
+loss:
+  name: ce_infonce
+  contrastive_weight: 0.1
+projection:
+  enabled: true
+augmentation:
+  two_views: true
+

@@ -1,0 +1,10 @@
+name: wav2vec2
+model_name: facebook/wav2vec2-large-xlsr-53
+load_pretrained: true
+normalize_waveform: true
+cache_dir: weights
+freeze_strategy: full
+unfreeze_last_n_layers: 0
+layer_aggregation: last
+mean_last_k: 4
+

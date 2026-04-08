@@ -1,0 +1,5 @@
+name: ce
+ce_weight: 1.0
+contrastive_weight: 0.0
+temperature: 0.07
+

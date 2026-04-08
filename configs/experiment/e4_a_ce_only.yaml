@@ -1,0 +1,9 @@
+# @package _global_
+loss:
+  name: ce
+  contrastive_weight: 0.0
+projection:
+  enabled: false
+augmentation:
+  two_views: false
+

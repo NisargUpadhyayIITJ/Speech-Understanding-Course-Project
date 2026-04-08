@@ -1,0 +1,9 @@
+name: mamba
+hidden_dim: 256
+num_layers: 2
+state_dim: 16
+conv_kernel: 4
+expand: 2
+dropout: 0.1
+num_classes: 2
+

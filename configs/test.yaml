@@ -1,15 +1,24 @@
-find_unused_parameters: True
-## we use weights from check_multigpu_epoch_16
-# asv19 eer0.0007512734331125843,                                               
-# asv19 dcf 0.0012109795479009688
-# eer0.10467467192957133,
-# asv5 dcf 0.25353725340775146
+defaults:
+  - encoder: w2v2_fullft
+  - model: baseline
+  - graph: fixed_gat
+  - _self_
+
+find_unused_parameters: true
 
 weights_path: /data/home/borodin_sam/another_workspace/AASIST3/weights/train/FINAL/model.safetensors
+pretrained_repo_id: null
+weights_cache_dir: weights
 
-batch_size:  128
+projection:
+  enabled: false
+  hidden_dim: 256
+  dim: 128
+  dropout: 0.1
+
+batch_size: 128
 num_workers: 24
-shuffle: False
+shuffle: false
 max_val_batches: 10
 
 data:
