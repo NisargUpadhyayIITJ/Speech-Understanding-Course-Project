@@ -173,7 +173,5 @@ But does NOT allow:
 - **Commercial use**: You may not use the material for commercial purposes
 - **Derivatives**: You may not distribute modified versions of the material
 
-For more information, visit: https://creativecommons.org/licenses/by-nc-nd/4.0/
-
 
 **Disclaimer**: This is a research implementation. The model weights provided are for demonstration purposes and may not match the exact performance reported in the paper.
