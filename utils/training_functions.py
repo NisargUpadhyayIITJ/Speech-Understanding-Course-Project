@@ -61,13 +61,23 @@ def train_one_epoch(model, dataloader, criterion, optimizer, accelerator, max_ba
             raise ValueError("Unexpected batch structure received from the dataloader")
 
         with accelerator.accumulate(model):
-            outputs = model(inputs, return_embedding=criterion.requires_embedding_outputs)
-            primary_graph_metrics = _extract_graph_diagnostics(model, accelerator)
-            second_outputs = None
-            secondary_graph_metrics = {}
             if second_inputs is not None:
-                second_outputs = model(second_inputs, return_embedding=criterion.requires_embedding_outputs)
-                secondary_graph_metrics = _extract_graph_diagnostics(model, accelerator)
+                combined_inputs = torch.cat([inputs, second_inputs], dim=0)
+                combined_outputs = model(combined_inputs, return_embedding=criterion.requires_embedding_outputs)
+                primary_graph_metrics = _extract_graph_diagnostics(model, accelerator)
+                secondary_graph_metrics = {}
+                batch_size = inputs.size(0)
+                if isinstance(combined_outputs, dict):
+                    outputs = {k: v[:batch_size] for k, v in combined_outputs.items()}
+                    second_outputs = {k: v[batch_size:] for k, v in combined_outputs.items()}
+                else:
+                    outputs = combined_outputs[:batch_size]
+                    second_outputs = combined_outputs[batch_size:]
+            else:
+                outputs = model(inputs, return_embedding=criterion.requires_embedding_outputs)
+                primary_graph_metrics = _extract_graph_diagnostics(model, accelerator)
+                second_outputs = None
+                secondary_graph_metrics = {}
             loss, loss_metrics = criterion(outputs, targets, second_outputs)
             accelerator.backward(loss)
             optimizer.step()

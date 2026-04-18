@@ -15,7 +15,7 @@ class ASVspoof5Train(TrialAudioDataset):
     def __init__(self, root_dir, meta_path, subset=None, save_annot=False, **kwargs):
         super().__init__(
             root_dir, meta_path,
-            first_idx=1, label_idx=5,
+            first_idx=1, label_idx=8,
             extension=".flac",
             **kwargs
         )
@@ -45,7 +45,7 @@ class ASVspoof5Dev(TrialAudioDataset):
     def __init__(self, root_dir, meta_path, subset=None, save_annot=False, **kwargs):
         super().__init__(
             root_dir, meta_path,
-            first_idx=1, label_idx=2,
+            first_idx=1, label_idx=8,
             extension=".flac",
             **kwargs
         )
