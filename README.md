@@ -43,13 +43,13 @@ Replaced encoder which is more suitable of deepfake detection tasks.
 
 > Metrics below are on our internal evaluation subset. Lower EER is better; higher min-tDCF is worse.
 
-| Model Variant | EER (%) ↓ |  Notes |
-|---|---|---|---|
-| Baseline (AASIST3) | 22.22 |  Original KAN + GAT + CE |
-| + Learnable GAT (reimpl.) | 76.33 |GAT with trained edge weights |
-| + Mamba (KAN replaced) | 12.23 |  SSM-based temporal modelling |
-| + Learnable GraphSAGE | 73.33 |  GraphSAGE, trainable aggregation |
-| ** Final: Mamba + Fixed GraphSAGE + SupCon** | **11.11** |  **Best overall** |
+| Model Variant                                      | EER (%) ↓ | Notes                                   |
+|---------------------------------------------------|----------|-----------------------------------------|
+| Baseline (AASIST3)                                | 22.22    | Original KAN + GAT + CE                 |
+| + Learnable GAT (reimpl.)                         | 76.33    | GAT with trained edge weights           |
+| + Mamba (KAN replaced)                            | 12.23    | SSM-based temporal modelling            |
+| + Learnable GraphSAGE                             | 73.33    | GraphSAGE, trainable aggregation        |
+| **Final: Mamba + Fixed GraphSAGE + SupCon**       | **11.11**| **Best overall**                        |
 
 
 ---
