@@ -148,7 +148,7 @@ model:
 
 ## Citation
 
-If you build on this work, please cite the original AASIST3 paper and this repository:
+
 
 ```bibtex
 @inproceedings{borodin24_asvspoof,
