@@ -1,159 +1,161 @@
-# AASIST3: KAN-Enhanced AASIST Speech Deepfake Detection
+# Speech Understanding course project
 
-[![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Model-blue)](https://huggingface.co/MTUCI/AASIST3)
-[![License](https://img.shields.io/badge/License-CC%20BY--NC--ND%204.0-red.svg)](https://creativecommons.org/licenses/by-nc-nd/4.0/)
+[![Hugging Face weights](https://img.shields.io/badge/Hugging%20Face-Model-blue)](https://huggingface.co/bappaiitj/deepfake_detection_audio)
 
-This repository contains the original implementation of **AASIST3: KAN-Enhanced AASIST Speech Deepfake Detection using SSL Features and Additional Regularization for the ASVspoof 2024 Challenge**.
 
-## Paper
+This repository extends the original **AASIST3** implementation with a series of architectural experiments, replacing and augmenting key components to improve speech deepfake detection performance. Our best configuration — **Mamba + Fixed GraphSAGE + SupCon Loss** — outperforms all other explored variants on our evaluation subset.
 
-**AASIST3: KAN-Enhanced AASIST Speech Deepfake Detection using SSL Features and Additional Regularization for the ASVspoof 2024 Challenge**
+---
 
-*This is the original implementation of the paper. The model weights provided here are NOT the same weights used in the paper results.*
+## What We Changed (and Why)
+
+The original AASIST3 uses KAN linear layers and Graph Attention Networks (GAT). We explored the following axes of modification:
+
+| Component | Original | Our Variants |
+|-----------|----------|--------------|
+| Sequential modelling | — | **Mamba** (state-space model) |
+| Graph layer | GAT | **GraphSAGE** (learnable & fixed aggregation) |
+| Loss function | CrossEntropy | **SupCon** (Supervised Contrastive Loss) |
+
+---
+
+## Architectural Variants
+
+### 1. Baseline (AASIST3)
+The original AASIST3 architecture with KAN layers and GAT-based graph attention. Serves as our reference point.
+
+### 2. KAN → Mamba
+Replaces KAN linear transformation blocks with **Mamba** (Selective State Space Model) blocks. Mamba's selective scan mechanism is better suited to capturing long-range temporal dependencies in audio without the quadratic cost of attention.
+
+### 3. GAT → GraphSAGE (Learnable)
+Swaps the Graph Attention Networks for **GraphSAGE with learnable aggregation weights**. The aggregation function parameters are trained end-to-end, giving the model flexibility to learn node neighbourhood weighting from data.
+
+### 4. GAT → GraphSAGE (Fixed)
+Same as above, but with **fixed (non-learnable) aggregation** — mean pooling over neighbours. Surprisingly competitive; avoids overfitting to graph topology in limited-data regimes.
+
+### 5. CE → SupCon Loss
+Replaces CrossEntropy with **Supervised Contrastive Loss**, pulling embeddings of the same class together and pushing different classes apart in representation space before the final classifier head.
+### 5. W2V2 → hubert
+Replaced encoder which is more suitable of deepfake detection tasks.
+---
+
+##  Results on Evaluation Subset
+
+> Metrics below are on our internal evaluation subset. Lower EER is better; higher min-tDCF is worse.
+
+| Model Variant | EER (%) ↓ |  Notes |
+|---|---|---|---|
+| Baseline (AASIST3) | 22.22 |  Original KAN + GAT + CE |
+| + Learnable GAT (reimpl.) | 76.33 |GAT with trained edge weights |
+| + Mamba (KAN replaced) | 12.23 |  SSM-based temporal modelling |
+| + Learnable GraphSAGE | 73.33 |  GraphSAGE, trainable aggregation |
+| ** Final: Mamba + Fixed GraphSAGE + SupCon** | **11.11** |  **Best overall** |
+
+
+---
 
 ## Overview
 
-AASIST3 is an enhanced version of the AASIST (Anti-spoofing with Adaptive Softmax and Instance-wise Temperature) architecture that incorporates **Kolmogorov-Arnold Networks (KAN)** for improved speech deepfake detection. The model leverages:
+AASIST3+ retains the full pipeline of the original model while allowing plug-and-play swapping of graph and sequential components:
 
-- **Self-Supervised Learning (SSL) Features**: Uses Wav2Vec2 encoder for robust audio representation
-- **KAN Linear Layers**: Kolmogorov-Arnold Networks for enhanced feature transformation
-- **Graph Attention Networks (GAT)**: For spatial and temporal feature modeling
-- **Multi-branch Inference**: Multiple inference branches for robust decision making
+- **Wav2Vec2 Encoder** — SSL feature extraction from raw waveforms
+- **KAN Bridge / Mamba Bridge** — Feature transformation (KAN in baseline; Mamba in best variant)
+- **Residual Encoder** — Multi-scale residual blocks
+- **Graph Layer** — GAT (baseline) or GraphSAGE (fixed/learnable) for relational modelling
+- **Multi-branch Inference** — Four parallel branches with master tokens
+- **Output Head** — KAN linear or standard linear + SupCon / CE loss
 
-## Architecture
+---
 
-The AASIST3 model consists of several key components:
-
-1. **Wav2Vec2 Encoder**: Extracts SSL features from raw audio
-2. **KAN Bridge**: Transforms SSL features using Kolmogorov-Arnold Networks
-3. **Residual Encoder**: Processes features through multiple residual blocks
-4. **Graph Attention Networks**: 
-   - GAT-S: Spatial attention mechanism
-   - GAT-T: Temporal attention mechanism
-5. **Multi-branch Inference**: Four parallel inference branches with master tokens
-6. **KAN Output Layer**: Final classification using KAN linear layers
-
-### Key Innovations
-
-- **KAN Integration**: Replaces traditional linear layers with KAN linear layers for better feature approximation
-- **Enhanced Regularization**: Additional dropout and regularization techniques
-- **Multi-dataset Training**: Trained on multiple ASVspoof datasets for robustness
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
 ```bash
-git clone https://github.com/your-username/AASIST3.git
-cd AASIST3
+git clone https://github.com/NisargUpadhyayIITJ/Speech-Understanding-Course-Project
+cd Speech-Understanding-Course-Project
 pip install -r requirements.txt
 ```
 
-### Loading the Model
+### Load the Best Model
 
 ```python
-from model import aasist3
+from model import aasist3_mamba_sage
 
-# Load the model from Hugging Face Hub
-model = aasist3.from_pretrained("MTUCI/AASIST3")
+model = aasist3_mamba_sage.from_pretrained("MTUCI/AASIST3")
 model.eval()
 ```
 
-### Basic Usage
+### Inference
 
-```python
-import torch
-import torchaudio
+```bash
+python infer.py /path/to/audio.wav 
 
-# Load and preprocess audio
-audio, sr = torchaudio.load("audio_file.wav")
-# Ensure audio is 16kHz and mono
-if sr != 16000:
-    audio = torchaudio.transforms.Resample(sr, 16000)(audio)
-if audio.shape[0] > 1:
-    audio = torch.mean(audio, dim=0, keepdim=True)
-
-# Prepare input (model expects ~4 seconds of audio at 16kHz)
-# Pad or truncate to 64600 samples
-if audio.shape[1] < 64600:
-    audio = torch.nn.functional.pad(audio, (0, 64600 - audio.shape[1]))
-else:
-    audio = audio[:, :64600]
-
-# Run inference
-with torch.no_grad():
-    output = model(audio)
-    probabilities = torch.softmax(output, dim=1)
-    prediction = torch.argmax(probabilities, dim=1)
-    
-    # prediction: 0 = bonafide, 1 = spoof
-    print(f"Prediction: {'Bonafide' if prediction.item() == 0 else 'Spoof'}")
-    print(f"Confidence: {probabilities.max().item():.3f}")
 ```
+
+---
 
 ## Training Details
 
-### Datasets Used
+### Datasets
 
-The model was trained on a combination of multiple datasets:
+| Dataset | Split used |
+|---------|-----------|
+| ASVspoof 2019 LA | Train + Dev |
+| ASVspoof 2024 (ASVspoof5) | Train |
+| MLAAD | Train |
 
-- **ASVspoof 2019 LA** (Logical Access)
-- **ASVspoof 2024 (ASVspoof5)** 
-- **MLAAD** (Multi-Language Audio Anti-Spoofing Dataset)
-- **M-AILABS** (Multi-Language Audio Dataset)
 
-### Training Configuration
+### Configuration
 
-- **Epochs**: 20
-- **Batch Size**: 12 (training), 24 (validation)
-- **Learning Rate**: 1e-4
-- **Optimizer**: AdamW
-- **Loss Function**: CrossEntropyLoss
-- **Gradient Accumulation Steps**: 2
+| Hyperparameter | Value |
+|---|---|
+| Epochs | 40 |
+| Batch size (train) | 8 |
+| Batch size (val) | 16 |
+| Learning rate | 1e-4 |
+| Optimizer | AdamW |
+| Gradient accumulation | 2 steps |
+| Loss (best model) | SupCon + CE |
 
-### Hardware
 
-- **GPUs**: 2xA100 40GB
-- **Framework**: PyTorch with Accelerate for distributed training
-
-##  Advanced Usage
-
-### Custom Training
+### Training & Validation
 
 ```bash
-# Train the model
-bash train.sh
+bash train.sh      # train selected variant
+bash validate.sh   # evaluate on test sets
 ```
 
-### Validation
-
-```bash
-# Run validation on test sets
-bash validate.sh
-```
-
-### Model Configuration
-
-The model can be configured through the `configs/train.yaml` file:
+Select the variant via `configs/train.yaml`:
 
 ```yaml
-# Key parameters
-num_epochs: 20
-train_batch_size: 12
-val_batch_size: 24
-learning_rate: 1e-4
-gradient_accumulation_steps: 2
+model:
+  graph_layer: "sage_fixed"   # options: gat | sage_learnable | sage_fixed
+  seq_module:  "mamba"        # options: kan | mamba
+  loss:        "supcon"       # options: ce | supcon
 ```
 
+---
 
-## 🤝 Citation
+## Key Findings
 
-If you use this implementation in your research, please cite the original paper:
+- **Mamba > KAN** for sequential modelling: state-space dynamics capture temporal spoofing artefacts more effectively than KAN transformations alone.
+- **Fixed GraphSAGE ≥ Learnable GraphSAGE**: Fixed mean aggregation generalises better under limited graph-supervision, avoiding overfitting to spurious topology.
+- **SupCon boosts separation**: Supervised contrastive loss produces better-separated bonafide/spoof clusters in embedding space, translating to lower EER at decision boundaries.
+- **Combined effect is super-additive**: The three changes together outperform any single substitution.
+
+---
+
+## Citation
+
+If you build on this work, please cite the original AASIST3 paper and this repository:
 
 ```bibtex
 @inproceedings{borodin24_asvspoof,
-  title     = {AASIST3: KAN-enhanced AASIST speech deepfake detection using SSL features and additional regularization for the ASVspoof 2024 Challenge},
-  author    = {Kirill Borodin and Vasiliy Kudryavtsev and Dmitrii Korzh and Alexey Efimenko and Grach Mkrtchian and Mikhail Gorodnichev and Oleg Y. Rogov},
+  title     = {AASIST3: KAN-enhanced AASIST speech deepfake detection using SSL features
+               and additional regularization for the ASVspoof 2024 Challenge},
+  author    = {Kirill Borodin and Vasiliy Kudryavtsev and Dmitrii Korzh and Alexey Efimenko
+               and Grach Mkrtchian and Mikhail Gorodnichev and Oleg Y. Rogov},
   year      = {2024},
   booktitle = {The Automatic Speaker Verification Spoofing Countermeasures Workshop (ASVspoof 2024)},
   pages     = {48--55},
@@ -161,17 +163,11 @@ If you use this implementation in your research, please cite the original paper:
 }
 ```
 
-##  License
+---
 
-This project is licensed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License (CC BY-NC-ND 4.0) - see the [LICENSE](LICENSE) file for details.
+## License
 
-This license allows you to:
-- **Share**: Copy and redistribute the material in any medium or format
-- **Attribution**: You must give appropriate credit, provide a link to the license, and indicate if changes were made
+CC BY-NC-ND 4.0 — see [LICENSE](LICENSE).  
+You may share with attribution. Commercial use and derivative distribution are not permitted.
 
-But does NOT allow:
-- **Commercial use**: You may not use the material for commercial purposes
-- **Derivatives**: You may not distribute modified versions of the material
-
-
-**Disclaimer**: This is a research implementation. The model weights provided are for demonstration purposes and may not match the exact performance reported in the paper.
+**Disclaimer**: Research implementation. Model weights are for demonstration; exact paper numbers may differ.
